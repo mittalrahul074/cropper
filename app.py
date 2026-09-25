@@ -203,6 +203,7 @@ def render_navigation_sidebar() -> None:
 # -------------------------------------------------------------------
 # MAIN ENTRY
 # -------------------------------------------------------------------
+print(f"LOGIN_FEATURE: {LOGIN_FEATURE}, Authenticated: {st.session_state.authenticated}")
 if LOGIN_FEATURE and not st.session_state.authenticated:
 
     attempt_auto_login()
