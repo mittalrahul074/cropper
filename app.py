@@ -87,15 +87,15 @@ if os.path.exists(CSS_PATH):
 # AUTH: AUTO LOGIN FROM COOKIE
 # -------------------------------------------------------------------
 def attempt_auto_login() -> None:
-    print("Attempting auto-login from cookie...")
+    st.write("Attempting auto-login from cookie...")
     if st.session_state.authenticated:
-        print("User already authenticated, skipping auto-login.")
+        st.write("User already authenticated, skipping auto-login.")
         return
 
     try:
         username = get_cookie("logged_user")
         if not username:
-            print("No logged_user cookie found.")
+            st.write("No logged_user cookie found.")
             return
 
         st.session_state.authenticated = True
@@ -108,7 +108,7 @@ def attempt_auto_login() -> None:
             st.session_state.party_filter = "Both"
 
     except Exception as e:
-        print(f"Auto-login error: {e}")
+        st.write(f"Auto-login error: {e}")
 
 # -------------------------------------------------------------------
 # SIDEBAR
@@ -175,12 +175,12 @@ def render_navigation_sidebar() -> None:
             }
 
             user_type = st.session_state.user_type
-            print(f"USER TYPE: {user_type}")
+            st.write(f"USER TYPE: {user_type}")
             allowed_pages = sorted(ROLE_ACCESS.get(user_type, {"Dashboard"}))
         else:
             allowed_pages = sorted(PAGES.keys())
 
-        print(f"ALLOWED PAGES: {allowed_pages}")
+        st.write(f"ALLOWED PAGES: {allowed_pages}")
 
         selected_page = st.selectbox(
             "Navigate",
@@ -205,7 +205,7 @@ def render_navigation_sidebar() -> None:
 # MAIN ENTRY
 # -------------------------------------------------------------------
 logging.info(f"LOGIN_FEATURE: {LOGIN_FEATURE}, Authenticated: {st.session_state.authenticated}")
-print(f"LOGIN_FEATURE: {LOGIN_FEATURE}, Authenticated: {st.session_state.authenticated}")
+st.write(f"LOGIN_FEATURE: {LOGIN_FEATURE}, Authenticated: {st.session_state.authenticated}")
 if LOGIN_FEATURE and not st.session_state.authenticated:
 
     attempt_auto_login()
@@ -232,5 +232,5 @@ else:
         render_product_lookup_panel()
     elif page == LABEL_STAMPER:
         logging.info("Rendering Label Stamper Panel")
-        print("Rendering Label Stamper Panel")
+        st.write("Rendering Label Stamper Panel")
         render_label_stamper_panel()
