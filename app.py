@@ -1,6 +1,7 @@
 import os
 import warnings
 import streamlit as st
+import logging
 
 from auth import authenticate_user, logout_user, set_cookie, get_cookie,get_cookie_manager
 from database import init_database, get_party, get_user_type
@@ -203,6 +204,7 @@ def render_navigation_sidebar() -> None:
 # -------------------------------------------------------------------
 # MAIN ENTRY
 # -------------------------------------------------------------------
+logging.info(f"LOGIN_FEATURE: {LOGIN_FEATURE}, Authenticated: {st.session_state.authenticated}")
 print(f"LOGIN_FEATURE: {LOGIN_FEATURE}, Authenticated: {st.session_state.authenticated}")
 if LOGIN_FEATURE and not st.session_state.authenticated:
 
