@@ -149,7 +149,7 @@ def render_login_sidebar() -> None:
             except Exception:
                 st.session_state.party_filter = "Both"
 
-            st.rerun()
+            # st.rerun()
 
 def render_navigation_sidebar() -> None:
     with st.sidebar:
