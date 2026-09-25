@@ -3,7 +3,6 @@ import warnings
 import streamlit as st
 
 from auth import authenticate_user, logout_user, set_cookie, get_cookie,get_cookie_manager
-from firestore_delete_app import render_delete_panel
 from database import init_database, get_party, get_user_type
 from product_lookup import render_product_lookup_panel
 from label_image import render_label_stamper_panel
