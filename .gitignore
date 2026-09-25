@@ -1,0 +1,8 @@
+.streamlit/secrets.toml
+serviceAccountKey.json
+_pycache_/
+firebase_key.json
+__pycache__/
+CLOUD_DEPLOYMENT_TROUBLESHOOTING.md
+*.pyc
+uploaded_files/

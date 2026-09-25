@@ -1,0 +1,264 @@
+import streamlit as st
+import pandas as pd
+import database
+from utils import get_swipe_card_html,next_sku
+from database import get_orders_grouped_by_sku, update_orders_for_sku, calculate_order_counts,get_orders_from_db,get_product_image_url,out_of_stock
+import time
+from validator import render_validator_panel
+import utils
+
+def get_page_info(page):
+    if page == "picker":
+        return {
+            'page_head': "Picking",
+            'status': "new",
+            'to_do': "pick",
+            'left': "Skip",
+            'right': "Pick",
+            'key_left': "skip_button",
+            'key_right': "pick_button",
+            'new_status': "picked"
+        }
+    elif page == "validator":
+        return {
+            'page_head': "Validation",
+            'status': "picked",
+            'to_do': "validate",
+            'left': "Reject",
+            'right': "Validate",
+            'key_left': "reject_button",
+            'key_right': "validate_button",
+            'new_status': "validated"
+        }
+    else:
+        st.error("Invalid page.")
+        st.stop()
+
+def out_of_stock_button(sku,user):
+    """Confirm user wants to mark SKU as out of stock, then call out_of_stock function by popping up a confirmation dialog"""
+    print(f"DEBUG: out_of_stock_button called for SKU={sku} by user={user}")
+    out_of_stock(sku, user)
+    st.success(f"✅ SKU {sku} marked as Out of Stock")
+
+def pick_sku(page_info):
+    """Mark the SKU as picked and move to next"""
+    current_sku_group = st.session_state.sku_groups.iloc[st.session_state.current_index]
+    sku = current_sku_group['sku']
+    total_quantity = current_sku_group['total_quantity']
+
+    # print(f"DEBUG: pick_sku called for SKU={sku}, quantity={total_quantity}")
+    # st.success(f"DEBUG: pick_sku called for SKU={sku}, quantity={total_quantity}")
+    time.sleep(0.5)  # UX delay
+
+    processed_quantity, processed_order_ids = update_orders_for_sku(
+        sku, 
+        total_quantity, 
+        page_info['new_status'],
+        st.session_state.user_role
+    )
+    
+    # print(f"DEBUG: First update returned processed_quantity={processed_quantity}")
+    # st.success(f"DEBUG: First update returned processed_quantity={processed_quantity}")
+    time.sleep(0.5)  # UX delay
+    
+    if processed_quantity == -1:
+        # print(f"DEBUG: ERROR - Not enough quantity for SKU={sku}")
+        st.toast(
+            f"❌ Not enough quantity left for SKU={sku}. "
+            f"Someone already validated/picked these orders.",
+            icon="⚠️"
+        )
+        time.sleep(0.5)  # UX delay
+        return
+    
+    if processed_quantity > 0:
+        # print(f"DEBUG: SUCCESS - {page_info['new_status']} {processed_quantity} units of {sku}")
+        st.success(f"{page_info['new_status']} {processed_quantity} units of {sku}!")
+        time.sleep(0.5)  # UX delay
+    
+    time.sleep(0.5)  # UX delay
+    # next_sku()  # Move to next SKU
+
+# @st.cache_data(ttl=30)
+def cached_orders():
+    return get_orders_from_db()
+
+# @st.cache_data
+def cached_group_orders(df, status):
+    return get_orders_grouped_by_sku(df, status)
+
+def without_images_df(df):
+    without_images = []
+
+    for _, row in df.iterrows():
+        sku = row["sku"]
+
+        img_url = get_product_image_url(sku)
+
+        if img_url:
+            continue  # Skip rows with images
+        else:
+            without_images.append(row)
+
+    df_without = pd.DataFrame(without_images)
+
+    return df_without
+
+def render_picker_validator_panel(which_page):
+    """Render the validator panel if which_page is 'validator', else picker panel"""
+    if which_page == "validator":
+        # redirect to validator panel
+        render_validator_panel()
+        return
+    # Main Picker Panel
+    page_info = get_page_info(which_page)
+    header_col1, header_col2 = st.columns([6, 1])
+
+    with header_col1:
+        st.title(f"📦 Order {page_info['page_head']}")
+    with header_col2:
+        show_filters = st.toggle("Show Filters", value=st.session_state.get("show_filters", False), key="show_filters_toggle")
+
+    st.divider()
+
+    if "orders_df" not in st.session_state:
+        with st.spinner("Loading orders..."):
+            st.session_state.orders_df = cached_orders()
+
+    #get orders picked_by is empty or null
+    df= st.session_state.orders_df
+    df = df[df['picked_by'].isna() | (df['picked_by'] == "")]
+    df = df[df['validated_by'].isna() | (df['validated_by'] == "")]
+    party_filter = st.session_state.get("party_filter", "Both")
+    df = utils.get_party_filter_df(df, party_filter)
+
+    if show_filters:
+        unique_dispatch_dates = df['dispatch_date'].unique()
+        selected_dispatch_date = st.selectbox("Filter by Dispatch Date", options=["All"] + list(unique_dispatch_dates))
+        if selected_dispatch_date != "All":
+            df = df[df['dispatch_date'] == selected_dispatch_date]
+
+        if st.session_state.get("user_type") in [3, 4, 5]:  
+            unique_skus = df['sku'].unique()
+            selected_sku = st.selectbox("Filter by SKU", options=["All"] + list(unique_skus))
+            if selected_sku != "All":
+                df = df[df['sku'] == selected_sku]
+
+        # if admin then show img filter option
+        if st.session_state.get("user_type") == 5:
+            image_filter = st.selectbox(
+                "Filter by Image Availability",
+                ["All", "Without Images"]
+            )
+
+            if image_filter == "Without Images":
+                df = without_images_df(df)
+
+    st.session_state.sku_groups = cached_group_orders(
+        df,
+        status= page_info['status'])
+
+    sku_groups = st.session_state.sku_groups
+
+    st.subheader(f"{len(sku_groups)} SKUs to Pick")
+
+    if "current_index" not in st.session_state:
+        st.session_state.current_index = 0  # Ensure index is initialized
+    if st.session_state.current_index>=len(sku_groups):
+        st.session_state.current_index = 0
+
+    if sku_groups.empty:
+        st.info(f"No orders available to {st.session_state.page}. Please wait for the admin to upload orders.")
+        st.stop()  # Prevent further execution
+
+    # Display SKU details
+    current_sku_group = sku_groups.iloc[st.session_state.current_index]
+    sku = current_sku_group['sku']
+    total_quantity = current_sku_group['total_quantity']
+    order_count = current_sku_group['order_count']
+    dispatch_date = current_sku_group['dispatch_breakdown']
+    # Display SKU card
+    with st.expander("📷 View Product Image"):
+        img_url = get_product_image_url(sku)  # or database.get_product_image_url(sku)
+        if img_url:
+            st.image(img_url, use_column_width=True)
+        else:
+            st.info("No product image found for this SKU.")
+    st.markdown(get_swipe_card_html({
+        'sku': sku,
+        'total_quantity': total_quantity,
+        'order_count': order_count,
+        'dispatch_date': dispatch_date
+    }, page_info['to_do']), unsafe_allow_html=True)
+
+    # Buttons
+    col1, col2 = st.columns(2)
+    with col2:
+        st.button(f"⬅️ {page_info['left']}", key=page_info['key_left'], use_container_width=True, on_click=next_sku)
+
+    with col1:
+        if st.button(f"{page_info['right']} ➡️", key=page_info['key_right'], use_container_width=True):
+            pick_sku(page_info)
+            st.session_state.current_index += 1
+            st.rerun()
+
+    st.button("Previous SKU ⬅️", key="previous_sku_button", use_container_width=True, on_click=lambda: st.session_state.update(current_index=max(0, st.session_state.current_index-1)))
+
+    #btn to mark out of stock a paticular sku
+    st.button("Mark SKU Out of Stock", key="out_of_stock_button", use_container_width=True, on_click=lambda: out_of_stock_button(sku, st.session_state.user_role))
+
+    # Pick Quantity Adjustment
+    st.markdown("---")
+    st.subheader(f"Adjust {page_info['to_do']} Quantity")
+
+    pick_quantity = st.number_input(
+        f"Quantity to {page_info['to_do']}", 
+        min_value=1, 
+        max_value=int(total_quantity), 
+        value=int(total_quantity)
+    )
+
+    if st.button(f"{page_info['to_do']} Adjusted Quantity", use_container_width=True):
+        st.success(f"Processing {pick_quantity} units of {sku} for {page_info['to_do']}.")
+        processed_quantity, processed_order_ids = update_orders_for_sku(
+            sku, 
+            pick_quantity, 
+            page_info['new_status'],
+            st.session_state.user_role
+        )
+        st.success(f"Processed {processed_quantity} units of {sku} for {page_info['to_do']}.")
+
+        if processed_quantity == -1:
+            st.toast(
+                f"❌ Not enough quantity left for SKU={sku}. "
+                f"Someone already validated/picked these orders.",
+                icon="⚠️"
+            )
+            return
+
+        if processed_quantity > 0:
+            st.success(f"{page_info['new_status']} {processed_quantity} units of {sku}!")
+
+        time.sleep(0.5)
+        st.session_state.current_index += 1
+        st.rerun()
+
+    #only for admin show option to change default sku party
+    if st.session_state.get("user_type") in [4, 5]:
+        
+        st.markdown("---")
+        st.subheader("Admin Options")
+        st.info("Change default party for this SKU (use with caution)")
+
+        party_options = ["Select","Kangan", "RS","SM"]
+        #remove option which is currently selected
+        current_party = st.session_state.get("party_filter", "Both")
+        party_options = [p for p in party_options if p != current_party]
+        selected_party = st.selectbox("Select Party", options=party_options)
+
+        if selected_party != "Select":
+            if st.button("Update Default Party for SKU", use_container_width=True):
+                database.update_sku_party(sku, current_party, selected_party)
+                st.success(f"✅ Default party for SKU {sku} updated to {selected_party}")
+                # rerun the data
+                st.rerun()
