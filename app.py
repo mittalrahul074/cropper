@@ -231,4 +231,6 @@ else:
     if page == LOOKUP:
         render_product_lookup_panel()
     elif page == LABEL_STAMPER:
+        logging.info("Rendering Label Stamper Panel")
+        print("Rendering Label Stamper Panel")
         render_label_stamper_panel()
