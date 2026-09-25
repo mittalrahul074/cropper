@@ -217,8 +217,6 @@ if LOGIN_FEATURE and not st.session_state.authenticated:
 
         if page == LOOKUP:
             render_product_lookup_panel()
-        elif page == PAGE_DELETE:
-            render_delete_panel()
         elif page == LABEL_STAMPER:
             render_label_stamper_panel()
 
@@ -229,7 +227,5 @@ else:
 
     if page == LOOKUP:
         render_product_lookup_panel()
-    elif page == PAGE_DELETE:
-        render_delete_panel()
     elif page == LABEL_STAMPER:
         render_label_stamper_panel()
