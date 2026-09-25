@@ -3,7 +3,7 @@ import warnings
 import streamlit as st
 import logging
 
-from auth import authenticate_user, logout_user, set_cookie, get_cookie,get_cookie_manager
+from auth import authenticate_user, logout_user, set_cookie, get_cookie,get_cookie_manager, create_session, delete_session, get_user_from_token
 from database import init_database, get_party, get_user_type
 from product_lookup import render_product_lookup_panel
 from label_image import render_label_stamper_panel
@@ -19,7 +19,6 @@ from label_image import render_label_stamper_panel
 APP_TITLE = "Order Management System"
 CSS_PATH = "assets/styles.css"
 
-PAGE_DASHBOARD = "dashboard"
 PAGE_ADMIN = "admin"
 PAGE_PICKER = "picker"
 PAGE_VALIDATOR = "validator"
@@ -57,7 +56,7 @@ def init_session_state() -> None:
         "user_role": None,
         "user_type": None,
         "party_filter": "Both",
-        "page": PAGE_DASHBOARD,
+        "page": LOOKUP,
         "db_initialized": False,
     }
 
@@ -86,8 +85,42 @@ if os.path.exists(CSS_PATH):
 # -------------------------------------------------------------------
 # AUTH: AUTO LOGIN FROM COOKIE
 # -------------------------------------------------------------------
+
+def save_token_to_storage(token: str):
+    """Save token to browser localStorage via JavaScript"""
+    st.markdown(f"""
+    <script>
+        localStorage.setItem('session_token', '{token}');
+    </script>
+    """, unsafe_allow_html=True)
+
+def get_token_from_storage():
+    """Retrieve token from localStorage"""
+    st.markdown("""
+    <script>
+        const token = localStorage.getItem('session_token');
+        if (token) {{
+            window.location.href = window.location.href.split('?')[0] + '?token=' + token;
+        }}
+    </script>
+    """, unsafe_allow_html=True)
+
 def attempt_auto_login() -> None:
     st.write("Attempting auto-login from cookie...")
+    query_params = st.query_params
+    token = query_params.get("token", None)
+
+    if token:
+        username = get_user_from_token(token)
+        if username:
+            st.session_state.authenticated = True
+            st.session_state.user_role = username
+            st.session_state.session_token = token
+            save_token_to_storage(token)  # Keep it in localStorage
+            return
+
+    get_token_from_storage()
+
     if st.session_state.authenticated:
         st.write("User already authenticated, skipping auto-login.")
         return
@@ -130,6 +163,10 @@ def render_login_sidebar() -> None:
                 return
 
             # Login success
+            if authenticate_user(username, password):
+                token = create_session(username)
+                save_token_to_storage(token)
+                st.query_params["token"] = token
 
             if set_cookie("logged_user", username):
                 manager = get_cookie_manager()
@@ -162,35 +199,41 @@ def render_navigation_sidebar() -> None:
         # =========================
         PAGES = {
             "Label Image Stamper": LABEL_STAMPER,
-            "Analysis": LOOKUP,
         }
 
         if LOGIN_FEATURE:
             ROLE_ACCESS = {
-                1: {"LOOKUP", "Label Image Stamper"}, # Picker only
-                2: {"LOOKUP"}, # Returns access only
-                3: {"LOOKUP", "Label Image Stamper"}, # Full access except Admin
-                4: {"LOOKUP", "Label Image Stamper"}, # Full access except Admin
+                1: {"Label Image Stamper"}, # Picker only
+                2: {"Label Image Stamper"}, # Returns access only
+                3: {"Label Image Stamper"}, # Full access except Admin
+                4: {"Label Image Stamper"}, # Full access except Admin
                 5: set(PAGES.keys()), # Admin has access to all pages
             }
 
             user_type = st.session_state.user_type
             st.write(f"USER TYPE: {user_type}")
-            allowed_pages = sorted(ROLE_ACCESS.get(user_type, {"Dashboard"}))
+            allowed_pages = sorted(ROLE_ACCESS.get(user_type, set(PAGES.keys())))
         else:
             allowed_pages = sorted(PAGES.keys())
 
         st.write(f"ALLOWED PAGES: {allowed_pages}")
 
+        current_page_name = next(
+            (k for k, v in PAGES.items() if v == st.session_state.page),
+            None,
+        )
+
+        # Use index if current page is allowed, else default to 0
+        default_index = (
+            allowed_pages.index(current_page_name)
+            if current_page_name and current_page_name in allowed_pages
+            else 0
+        )
+
         selected_page = st.selectbox(
             "Navigate",
             allowed_pages,
-            index=allowed_pages.index(
-                next(
-                    (k for k, v in PAGES.items() if v == st.session_state.page),
-                    "Label Image Stamper",
-                )
-            ),
+            index=default_index,
         )
 
         st.session_state.page = PAGES[selected_page]
@@ -198,6 +241,13 @@ def render_navigation_sidebar() -> None:
         st.markdown("---")
 
         if st.button("Logout"):
+            delete_session(st.session_state.session_token)
+            st.markdown("""
+            <script>
+                localStorage.removeItem('session_token');
+                window.location.href = window.location.href.split('?')[0];
+            </script>
+            """, unsafe_allow_html=True)
             logout_user()
             st.rerun()
 

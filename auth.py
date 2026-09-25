@@ -1,8 +1,50 @@
+from datetime import datetime, timedelta, timezone
+
+from firebase_admin import db
 import streamlit as st
 from streamlit_cookies_controller import CookieController
-from database import get_pass
+from database import get_pass,get_db_connection
+import secrets
 
+db = get_db_connection()
 
+def create_session(username: str) -> str:
+    """Create session token, store in Firestore"""
+    
+    token = secrets.token_urlsafe(32)
+    
+    db.collection("sessions").document(token).set({
+        "username": username,
+        "created_at": datetime.now(),
+        "expires_at": datetime.now() + timedelta(days=30)  # Token valid for 30 days
+    })
+    
+    return token
+
+def get_user_from_token(token: str):
+    """Retrieve username from token"""
+    if not token:
+        return None
+    
+    doc = db.collection("sessions").document(token).get()
+    
+    if not doc.exists:
+        return None
+    
+    data = doc.to_dict()
+    
+    # Check if token expired
+    # expires_at = datetime.fromisoformat(data["expires_at"])
+    if data["expires_at"] < datetime.now(timezone.utc):
+        db.collection("sessions").document(token).delete()
+        return None
+    
+    return data.get("username")
+
+def delete_session(token: str):
+    """Logout: delete token from Firestore"""
+    db.collection("sessions").document(token).delete()
+    
 # -------------------------------------------------
 # Cookie Manager
 # -------------------------------------------------
