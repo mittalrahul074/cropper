@@ -118,20 +118,42 @@ def attempt_auto_login() -> None:
     if not token:
         try:
             token = streamlit_js_eval(js="localStorage.getItem('session_token')")
-        except:
+            source = "localStorage"
+        except Exception as e:
+            st.write(f"Debug: localStorage error: {e}")
             token = None
 
     if token:
+        st.write(f"Debug: Token found from {source}: {token[:20]}...")
         username = get_user_from_token(token)
+        st.write(f"Debug: get_user_from_token returned: {username}")
+        
         if username:
             st.session_state.authenticated = True
             st.session_state.user_role = username
             st.session_state.session_token = token
-            save_token_to_storage(token)  # Keep it in localStorage
+            st.session_state.user_type = get_user_type(username)
+            st.session_state.party_filter = get_party(username)
+            save_token_to_storage(token)
+            st.write(f"✅ Auto-logged in as {username}")
             return
+        else:
+            st.write(f"⚠️ Token exists but user lookup failed")
 
     # get_token_from_storage()
 
+    if not st.session_state.get("authenticated"):
+        try:
+            username = get_cookie("logged_user")
+            if username:
+                st.session_state.authenticated = True
+                st.session_state.user_role = username
+                st.session_state.user_type = get_user_type(username)
+                st.session_state.party_filter = get_party(username)
+                st.write(f"✅ Auto-logged in via cookie as {username}")
+        except Exception as e:
+            st.write(f"Debug: Cookie login error: {e}")
+            
     if st.session_state.authenticated:
         st.write("User already authenticated, skipping auto-login.")
         return
