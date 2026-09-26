@@ -109,8 +109,9 @@ def get_token_from_storage():
     #return the token
     token = streamlit_js_eval(js="localStorage.getItem('session_token')")
     return token
-source = ""
+
 def attempt_auto_login() -> None:
+    source = ""
     st.write("Attempting auto-login from cookie...")
     query_params = st.query_params
     token = query_params.get("token", None)
