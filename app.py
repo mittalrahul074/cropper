@@ -130,7 +130,7 @@ def attempt_auto_login() -> None:
             save_token_to_storage(token)  # Keep it in localStorage
             return
 
-    get_token_from_storage()
+    # get_token_from_storage()
 
     if st.session_state.authenticated:
         st.write("User already authenticated, skipping auto-login.")
