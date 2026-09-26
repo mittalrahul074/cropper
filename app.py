@@ -99,6 +99,7 @@ def get_token_from_storage():
     st.markdown("""
     <script>
         const token = localStorage.getItem('session_token');
+        console.log("token:"+token);
         if (token) {{
             window.location.href = window.location.href.split('?')[0] + '?token=' + token;
         }}

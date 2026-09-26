@@ -24,6 +24,8 @@ import tempfile
 import os
 import time
 from PIL import Image
+from database import update_data_in_firebase
+import pandas as pd
 
 # ── Reuse your existing Firebase connection ──────────────────────────────────
 from firebase_utils import db  # your existing module
@@ -560,19 +562,15 @@ def get_user_ip() -> str:
         return "Unknown"
 
 
-def store_uploaded_file(uploaded_file, user_ip: str, platform: str) -> str | None:
+def store_uploaded_file(uploaded_file, platform: str):
     """Store an uploaded file in a directory named for the uploader's IP."""
     if uploaded_file is None:
         return None
 
-    safe_ip = re.sub(r"[^A-Za-z0-9_.-]", "_", user_ip or "Unknown")
-    storage_dir = os.path.join("uploaded_files", safe_ip, platform)
-    os.makedirs(storage_dir, exist_ok=True)
-    file_path = os.path.join(storage_dir, os.path.basename(platform))
+    df = pd.read_excel(uploaded_file)
 
-    with open(file_path, "wb") as file_handle:
-        file_handle.write(uploaded_file.getvalue())
-    return file_path
+    update_data_in_firebase(platform, df)
+    return 
 
 def load_uploaded_file(user_ip: str, platform: str) -> bytes | None:
     """Load a previously uploaded file for the given user IP and platform."""
@@ -640,7 +638,7 @@ def render_label_stamper_panel():
             help="Download the listing xls from Flipkart seller panel and upload here",
         )
         if flipkart_file is not None:
-            store_uploaded_file(flipkart_file, user_ip, "flipkart")
+            store_uploaded_file(flipkart_file, "flipkart")
 
     if load_uploaded_file(user_ip, "meesho"):
         st.success("✅ Meesho inventory file already uploaded")
@@ -654,7 +652,7 @@ def render_label_stamper_panel():
             help="Download the inventory xls from Meesho seller panel and upload here",
         )
         if meesho_file is not None:
-            store_uploaded_file(meesho_file, user_ip, "meesho")
+            store_uploaded_file(meesho_file, "meesho")
 
     if is_flipkart_file and is_meesho_file:
         st.caption("Upload Flipkart label PDF → auto-adds product images → download for printing")

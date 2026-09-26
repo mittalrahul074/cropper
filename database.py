@@ -48,6 +48,8 @@ from db.out_of_stock import (
     accept_out_of_stock,
 )
 
+from db.file_uploads import update_data_in_firebase
+
 __all__ = [
     # Firestore
     "get_db_connection",
@@ -84,4 +86,6 @@ __all__ = [
     # Out of Stock
     "get_out_of_stock_from_db",
     "accept_out_of_stock",
+    #File Upload
+    "update_data_in_firebase",
 ]
