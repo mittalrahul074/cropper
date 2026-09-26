@@ -115,6 +115,12 @@ def attempt_auto_login() -> None:
     query_params = st.query_params
     token = query_params.get("token", None)
 
+    if not token:
+        try:
+            token = streamlit_js_eval(js="localStorage.getItem('session_token')")
+        except:
+            token = None
+
     if token:
         username = get_user_from_token(token)
         if username:
@@ -124,14 +130,7 @@ def attempt_auto_login() -> None:
             save_token_to_storage(token)  # Keep it in localStorage
             return
 
-    token = get_token_from_storage()
-    username = get_user_from_token(token)
-    if username:
-        st.session_state.authenticated = True
-        st.session_state.user_role = username
-        st.session_state.session_token = token
-        save_token_to_storage(token)  # Keep it in localStorage
-        return
+    get_token_from_storage()
 
     if st.session_state.authenticated:
         st.write("User already authenticated, skipping auto-login.")
