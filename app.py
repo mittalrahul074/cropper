@@ -118,7 +118,13 @@ def attempt_auto_login() -> None:
 
     if not token:
         try:
-            token = streamlit_js_eval(js="localStorage.getItem('session_token')")
+            token = streamlit_js_eval(js="""
+            (function() {
+                const t = localStorage.getItem('session_token');
+                console.log('Token from JS:', t);
+                return t;
+            })()
+            """)
             source = "localStorage"
             st.write(f"Found token via local storage: {token}")
         except Exception as e:
