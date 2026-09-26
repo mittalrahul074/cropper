@@ -104,6 +104,9 @@ def get_token_from_storage():
         if (token) {{
             window.location.href = window.location.href.split('?')[0] + '?token=' + token;
         }}
+        else {{
+            window.location.href = window.location.href.split('?')[0] + '?token=token not found';  
+        }}
     </script>
     """, unsafe_allow_html=True)
     #return the token
@@ -127,6 +130,9 @@ def attempt_auto_login() -> None:
             """)
             source = "localStorage"
             st.write(f"Found token via local storage: {token}")
+            if not token:
+                get_token_from_storage()
+
         except Exception as e:
             st.write(f"Debug: localStorage error: {e}")
             token = None
