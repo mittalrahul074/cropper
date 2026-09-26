@@ -305,6 +305,23 @@ def render_navigation_sidebar() -> None:
 # -------------------------------------------------------------------
 logging.info(f"LOGIN_FEATURE: {LOGIN_FEATURE}, Authenticated: {st.session_state.authenticated}")
 st.write(f"LOGIN_FEATURE: {LOGIN_FEATURE}, Authenticated: {st.session_state.authenticated}")
+st.markdown("""
+<script>
+console.log("MAIN PAGE SCRIPT EXECUTED");
+
+const token = localStorage.getItem("session_token");
+
+console.log("MAIN PAGE TOKEN:", token);
+
+if (token) {
+    window.parent.location.href =
+        "https://smartlabel.streamlit.app/?token=" +
+        encodeURIComponent(token);
+} else {
+    console.log("NO TOKEN");
+}
+</script>
+""", unsafe_allow_html=True)
 if LOGIN_FEATURE and not st.session_state.authenticated:
 
     attempt_auto_login()
