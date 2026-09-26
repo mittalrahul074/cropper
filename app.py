@@ -109,7 +109,7 @@ def get_token_from_storage():
     #return the token
     token = streamlit_js_eval(js="localStorage.getItem('session_token')")
     return token
-
+source = ""
 def attempt_auto_login() -> None:
     st.write("Attempting auto-login from cookie...")
     query_params = st.query_params
@@ -153,7 +153,7 @@ def attempt_auto_login() -> None:
                 st.write(f"✅ Auto-logged in via cookie as {username}")
         except Exception as e:
             st.write(f"Debug: Cookie login error: {e}")
-            
+
     if st.session_state.authenticated:
         st.write("User already authenticated, skipping auto-login.")
         return
