@@ -120,9 +120,12 @@ def attempt_auto_login() -> None:
         try:
             token = streamlit_js_eval(js="localStorage.getItem('session_token')")
             source = "localStorage"
+            st.write(f"Found token via local storage: {token}")
         except Exception as e:
             st.write(f"Debug: localStorage error: {e}")
             token = None
+    else:
+        st.write("Found token via url")
 
     if token:
         st.write(f"Debug: Token found from {source}: {token[:20]}...")
