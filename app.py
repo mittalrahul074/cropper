@@ -7,6 +7,7 @@ from auth import authenticate_user, logout_user, set_cookie, get_cookie,get_cook
 from database import init_database, get_party, get_user_type
 from product_lookup import render_product_lookup_panel
 from label_image import render_label_stamper_panel
+from streamlit_js_eval import streamlit_js_eval
 
 # -------------------------------------------------------------------
 # SUPPRESS WARNINGS (DEPENDENCY NOISE)
@@ -105,6 +106,9 @@ def get_token_from_storage():
         }}
     </script>
     """, unsafe_allow_html=True)
+    #return the token
+    token = streamlit_js_eval(js="localStorage.getItem('session_token')")
+    return token
 
 def attempt_auto_login() -> None:
     st.write("Attempting auto-login from cookie...")
@@ -120,7 +124,14 @@ def attempt_auto_login() -> None:
             save_token_to_storage(token)  # Keep it in localStorage
             return
 
-    get_token_from_storage()
+    token = get_token_from_storage()
+    username = get_user_from_token(token)
+    if username:
+        st.session_state.authenticated = True
+        st.session_state.user_role = username
+        st.session_state.session_token = token
+        save_token_to_storage(token)  # Keep it in localStorage
+        return
 
     if st.session_state.authenticated:
         st.write("User already authenticated, skipping auto-login.")
