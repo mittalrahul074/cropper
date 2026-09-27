@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import tempfile
 
-def update_data_in_firebase(platform: str, df : pd.DataFrame) -> None:
+def update_data_in_firebase(platform: str, df : pd.DataFrame,user_name:str) -> None:
     db = firestore.client()
     
     if platform.lower() not in ["flipkart", "meesho"]:
@@ -19,26 +19,50 @@ def update_data_in_firebase(platform: str, df : pd.DataFrame) -> None:
         collection_name = f"{platform.lower()}_sku_mapping"
         
         # Delete old data (optional)
-        old_docs = db.collection(collection_name).stream()
+        print("getting old docs")
+
+        mapping_ref = (
+            db.collection("user")
+              .document(user_name)
+              .collection(collection_name)
+        )
+
+        old_docs = mapping_ref.stream()
         for doc in old_docs:
             doc.reference.delete()
+        print("delted old docs")
 
         if platform == "flipkart":
-            sku_col = df[2] #b coloum
-            fsn_col = df[5] #e coloum
+            print(df)
+            sku_col = df.iloc[:, 1]
+            fsn_col = df.iloc[:,4] #e coloum
         elif platform == "meesho":
-            sku_col = df[6]
-            fsn_col = df[5]
+            print(df)
+            sku_col = df.iloc[:, 5]
+            fsn_col = df.iloc[:,4]
+
+        print(f"sku:{sku_col}")
         # Save each row as a document
         for idx, (sku, fsn) in enumerate(zip(sku_col, fsn_col)):
 
             if pd.isna(sku) or pd.isna(fsn):
                 continue
 
-            db.collection(collection_name).document(str(idx)).set({
+            mapping_ref.document(str(idx)).set({
                 "sku": str(sku),
                 "fsn": str(fsn)
             })
+
+        metadata_ref = (
+            db.collection("user")
+            .document(user_name)
+            .collection("metadata")
+            .document(collection_name)
+        )
+
+        metadata_ref.set({
+            "uploaded_at": firestore.SERVER_TIMESTAMP
+        })
 
         print(
             f"✅ {len(df)} records saved to Firebase/{collection_name}"
@@ -46,44 +70,30 @@ def update_data_in_firebase(platform: str, df : pd.DataFrame) -> None:
                 
     except Exception as e:
         print(f"❌ Error saving to Firebase: {e}")
-def pending_awb(awb):
-    """Record a pending AWB with timestamp"""
-    db = get_db_connection()
-    if db is None:
-        print("❌ Database connection failed in pending_awb")
-        return
-    pending_ref = db.collection("pending_awbs").document(awb)
-    pending_ref.set({
-        "awb": awb,
-        "timestamp": firestore.SERVER_TIMESTAMP
-    })
-    print(f"✅ Pending AWB {awb} recorded in database.")
 
+def get_last_upload_date(user_name: str, platform: str):
+    db = firestore.client()
 
-def pending_awbs_list():
-    """Fetch all pending AWBs older than 1 day"""
-    db = get_db_connection()
-    if db is None:
-        print("❌ Database connection failed in pending_awbs_list")
-        return []
-    # where timestamp is older than 1 day
-    pending_ref = db.collection("pending_awbs").where("timestamp", "<=", datetime.utcnow() - timedelta(days=1))
-    docs = pending_ref.stream()
-    awb_list = [doc.id for doc in docs]
-    print(f"✅ Fetched {len(awb_list)} pending AWBs from database.")
-    return awb_list
+    platform = platform.lower()
+    collection_name = f"{platform}_sku_mapping"
 
+    metadata_ref = (
+        db.collection("user")
+        .document(user_name)
+        .collection("metadata")
+        .document(collection_name)
+    )
 
-def remove_pending_awb(awb):
-    """Remove a pending AWB if it exists (no error if not found)"""
-    db = get_db_connection()
-    if db is None:
-        print("❌ Database connection failed in remove_pending_awb")
-        return
-    try:
-        pending_ref = db.collection("pending_awbs").document(awb)
-        if pending_ref.get().exists:
-            pending_ref.delete()
-            print(f"✅ Removed pending AWB {awb} from database.")
-    except Exception as e:
-        print(f"⚠️ Could not remove pending AWB {awb}: {e}")
+    doc = metadata_ref.get()
+
+    if not doc.exists:
+        return None
+
+    data = doc.to_dict()
+
+    uploaded_at = data.get("uploaded_at")
+
+    if uploaded_at is None:
+        return None
+
+    return uploaded_at

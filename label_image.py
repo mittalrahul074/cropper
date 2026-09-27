@@ -24,7 +24,7 @@ import tempfile
 import os
 import time
 from PIL import Image
-from database import update_data_in_firebase
+from database import update_data_in_firebase, get_last_upload_date
 import pandas as pd
 
 # ── Reuse your existing Firebase connection ──────────────────────────────────
@@ -327,7 +327,7 @@ def get_fsn_from_xls(sku: str, platform: str) -> str | None:
         st.warning("User IP not found in session state.")
         return None
 
-    xls_bytes = load_uploaded_file(user_ip, platform)
+    xls_bytes = get_last_upload_date(st.session_state.user_role,platform)
     if not xls_bytes:
         st.warning(f"No {platform} listing file found for user {user_ip}.")
         return None
@@ -568,21 +568,9 @@ def store_uploaded_file(uploaded_file, platform: str):
         return None
 
     df = pd.read_excel(uploaded_file)
-
-    update_data_in_firebase(platform, df)
+    df = df.iloc[1:]
+    update_data_in_firebase(platform, df,st.session_state.user_role)
     return 
-
-def load_uploaded_file(user_ip: str, platform: str) -> bytes | None:
-    """Load a previously uploaded file for the given user IP and platform."""
-    safe_ip = re.sub(r"[^A-Za-z0-9_.-]", "_", user_ip or "Unknown")
-    storage_dir = os.path.join("uploaded_files", safe_ip, platform)
-    file_path = os.path.join(storage_dir, os.path.basename(platform))
-
-    if os.path.exists(file_path):
-        with open(file_path, "rb") as file_handle:
-            return file_handle.read()
-    return None
-
 
 def render_label_stamper_panel():
     st.set_page_config(
@@ -626,30 +614,45 @@ def render_label_stamper_panel():
 
     is_flipkart_file = 0
     is_meesho_file = 0
-    if load_uploaded_file(user_ip, "flipkart"):
-        st.success("✅ Flipkart listing xls already uploaded")
-        is_flipkart_file = 1
-    else:
-        st.caption("Upload Flipkart listing xls file")
+    flipkart_file_exists = get_last_upload_date(st.session_state.user_role, "flipkart")
+    meesho_file_exists = get_last_upload_date(st.session_state.user_role, "meesho")
 
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        st.success("✅ Flipkart listing uploaded") if flipkart_file_exists else st.caption("Upload Flipkart listing xls file")
+        is_flipkart_file = 1 if flipkart_file_exists else 0
+
+    with col2:
+        if flipkart_file_exists and st.button("🔄 Update Flipkart"):
+            st.session_state.show_flipkart_upload = True
+
+    if st.session_state.get("show_flipkart_upload", not flipkart_file_exists):
         flipkart_file = st.file_uploader(
             "📂 Upload Flipkart listing xls file",
             type=["xls", "xlsx"],
             help="Download the listing xls from Flipkart seller panel and upload here",
+            key="flipkart_uploader"
         )
         if flipkart_file is not None:
             store_uploaded_file(flipkart_file, "flipkart")
 
-    if load_uploaded_file(user_ip, "meesho"):
-        st.success("✅ Meesho inventory file already uploaded")
-        is_meesho_file = 1
-    else:
-        st.caption("Upload Meesho inventory file")
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.success("✅ Meesho listing uploaded") if meesho_file_exists else st.caption("Upload meesho listing xls file")
+        is_meesho_file = 1 if meesho_file_exists else 0
 
+    with col2:
+        if meesho_file_exists and st.button("🔄 Update Meesho"):
+            st.session_state.show_meesho_upload = True
+
+    if st.session_state.get("show_meesho_upload", not meesho_file_exists):
         meesho_file = st.file_uploader(
-            "📂 Upload Meesho inventory file",
+            "📂 Upload meesho listing xls file",
             type=["xls", "xlsx"],
-            help="Download the inventory xls from Meesho seller panel and upload here",
+            help="Download the listing xls from meesho seller panel and upload here",
+            key="meesho_uploader"
         )
         if meesho_file is not None:
             store_uploaded_file(meesho_file, "meesho")

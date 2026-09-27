@@ -48,7 +48,7 @@ from db.out_of_stock import (
     accept_out_of_stock,
 )
 
-from db.file_uploads import update_data_in_firebase
+from db.file_uploads import update_data_in_firebase,get_last_upload_date
 
 __all__ = [
     # Firestore
@@ -88,4 +88,5 @@ __all__ = [
     "accept_out_of_stock",
     #File Upload
     "update_data_in_firebase",
+    "get_last_upload_date",
 ]
