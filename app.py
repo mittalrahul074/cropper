@@ -115,7 +115,7 @@ def get_token_from_storage():
 
 def attempt_auto_login() -> None:
     source = ""
-    st.write("Attempting auto-login from cookie...")
+    # st.write("Attempting auto-login from cookie...")
     query_params = st.query_params
     token = query_params.get("token", None)
 
@@ -129,7 +129,7 @@ def attempt_auto_login() -> None:
             })()
             """)
             source = "localStorage"
-            st.write(f"Found token via local storage: {token}")
+            # st.write(f"Found token via local storage: {token}")
             if not token:
                 get_token_from_storage()
 
@@ -171,7 +171,7 @@ def attempt_auto_login() -> None:
             st.write(f"Debug: Cookie login error: {e}")
 
     if st.session_state.authenticated:
-        st.write("User already authenticated, skipping auto-login.")
+        # st.write("User already authenticated, skipping auto-login.")
         return
 
     try:
@@ -260,12 +260,12 @@ def render_navigation_sidebar() -> None:
             }
 
             user_type = st.session_state.user_type
-            st.write(f"USER TYPE: {user_type}")
+            # st.write(f"USER TYPE: {user_type}")
             allowed_pages = sorted(ROLE_ACCESS.get(user_type, set(PAGES.keys())))
         else:
             allowed_pages = sorted(PAGES.keys())
 
-        st.write(f"ALLOWED PAGES: {allowed_pages}")
+        # st.write(f"ALLOWED PAGES: {allowed_pages}")
 
         current_page_name = next(
             (k for k, v in PAGES.items() if v == st.session_state.page),
@@ -290,7 +290,6 @@ def render_navigation_sidebar() -> None:
         st.markdown("---")
 
         if st.button("Logout"):
-            delete_session(st.session_state.session_token)
             st.markdown("""
             <script>
                 localStorage.removeItem('session_token');
@@ -303,8 +302,8 @@ def render_navigation_sidebar() -> None:
 # -------------------------------------------------------------------
 # MAIN ENTRY
 # -------------------------------------------------------------------
-logging.info(f"LOGIN_FEATURE: {LOGIN_FEATURE}, Authenticated: {st.session_state.authenticated}")
-st.write(f"LOGIN_FEATURE: {LOGIN_FEATURE}, Authenticated: {st.session_state.authenticated}")
+# logging.info(f"LOGIN_FEATURE: {LOGIN_FEATURE}, Authenticated: {st.session_state.authenticated}")
+# st.write(f"LOGIN_FEATURE: {LOGIN_FEATURE}, Authenticated: {st.session_state.authenticated}")
 st.markdown("""
 <script>
 console.log("MAIN PAGE SCRIPT EXECUTED");
@@ -323,22 +322,22 @@ if (token) {
 </script>
 """, unsafe_allow_html=True)
 
-st.write("Testing parent localStorage...")
+# st.write("Testing parent localStorage...")
 
-token = streamlit_js_eval(
-    js="""
-    (function() {
-        try {
-            return window.parent.localStorage.getItem('session_token');
-        } catch (e) {
-            return 'ERROR: ' + e.toString();
-        }
-    })()
-    """,
-    key="parent_localstorage_test",
-)
+# token = streamlit_js_eval(
+#     js="""
+#     (function() {
+#         try {
+#             return window.parent.localStorage.getItem('session_token');
+#         } catch (e) {
+#             return 'ERROR: ' + e.toString();
+#         }
+#     })()
+#     """,
+#     key="parent_localstorage_test",
+# )
 
-st.write("Parent token:", token)
+# st.write("Parent token:", token)
 if LOGIN_FEATURE and not st.session_state.authenticated:
 
     attempt_auto_login()

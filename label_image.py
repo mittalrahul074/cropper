@@ -552,7 +552,7 @@ def get_user_ip() -> str:
     try:
         headers = st.context.headers
         forwarded_for = headers.get("X-Forwarded-For", "")
-        st.info(f"User IP from headers: {forwarded_for}")
+        # st.info(f"User IP from headers: {forwarded_for}")
         if forwarded_for:
             return forwarded_for.split(",")[0].strip()
         st.warning("Could not determine user IP from headers. Using fallback.")
