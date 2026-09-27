@@ -322,6 +322,23 @@ if (token) {
 }
 </script>
 """, unsafe_allow_html=True)
+
+st.write("Testing parent localStorage...")
+
+token = streamlit_js_eval(
+    js="""
+    (function() {
+        try {
+            return window.parent.localStorage.getItem('session_token');
+        } catch (e) {
+            return 'ERROR: ' + e.toString();
+        }
+    })()
+    """,
+    key="parent_localstorage_test",
+)
+
+st.write("Parent token:", token)
 if LOGIN_FEATURE and not st.session_state.authenticated:
 
     attempt_auto_login()
