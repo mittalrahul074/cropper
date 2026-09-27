@@ -22,17 +22,28 @@ def update_data_in_firebase(platform: str, df : pd.DataFrame) -> None:
         old_docs = db.collection(collection_name).stream()
         for doc in old_docs:
             doc.reference.delete()
-        
+
+        if platform == "flipkart":
+            sku_col = df[2] #b coloum
+            fsn_col = df[5] #e coloum
+        elif platform == "meesho":
+            sku_col = df[6]
+            fsn_col = df[5]
         # Save each row as a document
-        for idx, row in df.iterrows():
-            doc_data = row.to_dict()
-            # Handle NaN values
-            doc_data = {k: (None if pd.isna(v) else v) for k, v in doc_data.items()}
-            
-            db.collection(collection_name).document(str(idx)).set(doc_data)
-        
-        print(f"✅ {len(df)} records saved to Firebase/{collection_name}")
-        
+        for idx, (sku, fsn) in enumerate(zip(sku_col, fsn_col)):
+
+            if pd.isna(sku) or pd.isna(fsn):
+                continue
+
+            db.collection(collection_name).document(str(idx)).set({
+                "sku": str(sku),
+                "fsn": str(fsn)
+            })
+
+        print(
+            f"✅ {len(df)} records saved to Firebase/{collection_name}"
+        )
+                
     except Exception as e:
         print(f"❌ Error saving to Firebase: {e}")
 def pending_awb(awb):
