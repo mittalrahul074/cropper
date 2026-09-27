@@ -9,15 +9,15 @@ def get_db_connection():
     
     try:
         # Check if secrets exist
-        if "firebase" not in st.secrets:
-            error_msg = "❌ Firebase secrets not found in st.secrets"
+        if "firebase" not in os.environ:
+            error_msg = "❌ Firebase secrets not found in os.environ"
             print(error_msg)
             # st.error(error_msg)
             return None
             
         print("Firebase secrets found")
         
-        firebase_credentials = dict(st.secrets["firebase"])  # Convert secrets to dict
+        firebase_credentials = dict(os.environ["firebase"])  # Convert secrets to dict
 
         # Initialize Firebase if not already initialized
         if not firebase_admin._apps:

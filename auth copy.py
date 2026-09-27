@@ -17,15 +17,15 @@ def init_cookies():
     try:
         print("Initializing cookie manager...")
         
-        if "auth_secret" not in st.secrets:
-            error_msg = "auth_secret not found in st.secrets"
+        if "auth_secret" not in os.environ:
+            error_msg = "auth_secret not found in os.environ"
             print(error_msg)
             st.warning("⚠️ Cookie authentication not available - auth_secret missing")
             return None
         
         cookies = EncryptedCookieManager(
             prefix="oms_",
-            password=st.secrets["auth_secret"]
+            password=os.environ["auth_secret"]
         )
         
         print("Cookie manager created, checking if ready...")

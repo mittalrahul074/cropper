@@ -5,7 +5,7 @@ import json
 import os
 
 # Load Firebase credentials from Streamlit secrets
-firebase_credentials = dict(st.secrets["firebase"])  # Convert secrets to dict
+firebase_credentials = dict(os.environ["firebase"])  # Convert secrets to dict
 
 # Initialize Firebase if not already initialized
 if not firebase_admin._apps:
