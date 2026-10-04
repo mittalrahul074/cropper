@@ -24,7 +24,7 @@ import tempfile
 import os
 import time
 from PIL import Image
-from database import update_data_in_firebase, get_last_upload_date
+from database import update_data_in_firebase, get_last_upload_date, get_fsn_from_fb
 import pandas as pd
 from zoneinfo import ZoneInfo
 
@@ -317,65 +317,6 @@ def clean_sku(sku):
     # sku = re.sub(r"\s+", "", sku)
 
     return sku
-
-def get_fsn_from_xls(sku: str, platform: str) -> str | None:
-    """
-    Fetch the FSN (Flipkart Stock Number) for a given SKU from the uploaded listing XLS.
-    Returns FSN as string if found, else None.
-    """
-    user_ip = st.session_state.get("user_ip")
-    if not user_ip:
-        st.warning("User IP not found in session state.")
-        return None
-
-    xls_bytes = get_last_upload_date(st.session_state.user_role,platform)
-    if not xls_bytes:
-        st.warning(f"No {platform} listing file found for user {user_ip}.")
-        return None
-
-    try:
-        import pandas as pd
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_file:
-            tmp_file.write(xls_bytes)
-            tmp_file_path = tmp_file.name
-
-        # Read the XLS file
-        df = pd.read_excel(tmp_file_path)
-
-        # Assuming the XLS has columns 'SKU' in column B and 'FSN' in column E
-        if platform == "flipkart":
-            sku_col = df.columns[1].strip()  # Column B
-        else:
-            sku_col = df.columns[5].strip()  # Column F
-        fsn_col = df.columns[4].strip()  # Column E
-
-        print(f"Loaded {platform} listing with {len(df)} rows. Searching for SKU: >>>{sku}<<<")
-
-        if sku_col not in df.columns or fsn_col not in df.columns:
-            st.warning(f"{platform.capitalize()} listing file missing required columns.")
-            return None
-
-        # check if sku is in the sku column (case-insensitive, stripped)
-        sku = clean_sku(sku)
-        if sku not in df[sku_col].astype(str).str.upper().str.strip().values:
-            st.warning(f"SKU {sku} not found in {platform} listing.")
-            return None
-
-        # Search for the SKU in the DataFrame
-        matched_row = df[df[sku_col].astype(str).str.upper().str.strip() == sku]
-        if not matched_row.empty:
-            print(f"Found SKU {sku} in {platform} listing. FSN: {matched_row.iloc[0][fsn_col]}")
-            fsn_value = matched_row.iloc[0][fsn_col]
-            return str(fsn_value).strip() if pd.notna(fsn_value) else None
-        else:
-            print(f"SKU {sku} not found in {platform} listing.")
-
-    except Exception as e:
-        st.warning(f"Error reading {platform} listing file: {e}")
-        return None
-    finally:
-        if os.path.exists(tmp_file_path):
-            os.remove(tmp_file_path)
     
 def process_pdf_meesho(uploaded_bytes: bytes) -> tuple[bytes, list[dict]]:
     """
@@ -411,7 +352,7 @@ def process_pdf_meesho(uploaded_bytes: bytes) -> tuple[bytes, list[dict]]:
             continue
         print(f"Page {i+1} - SKU extraction time: {time.time() - start_sku:.3f}s")
         start_sku = time.time()
-        product_id = get_fsn_from_xls(sku, platform="meesho")  # Fetch product ID from Meesho listing xls
+        product_id = get_fsn_from_fb(user_name=st.session_state.user_role, sku=sku, platform="meesho")  # Fetch product ID from Meesho listing xls
         if not product_id:
             print(f"Page {i+1} - Product ID not found for SKU: {sku}")
             img_bytes = get_barcode_image(sku)  # Use barcode image instead of product image
@@ -503,7 +444,7 @@ def process_pdf_flipkart(uploaded_bytes: bytes) -> tuple[bytes, list[dict]]:
 
         t = time.perf_counter()
         # img_bytes = download_image(image_url)
-        fsn  = get_fsn_from_xls(sku, platform="flipkart")  # Fetch FSN from Flipkart listing xls
+        fsn  = get_fsn_from_fb(user_name=st.session_state.user_role, sku=sku, platform="flipkart")  # Fetch FSN from Flipkart listing xls
         if not fsn:
             print(f"Page {i+1} - FSN not found for SKU: {sku}")
             results.append({"page": i + 1, "sku": sku, "status": "⚠️ FSN not found in Flipkart listing"})

@@ -181,3 +181,24 @@ def get_last_upload_date(user_name: str, platform: str):
         return None
 
     return uploaded_at
+
+def get_fsn_from_fb(user_name: str, sku: str, platform: str) -> str | None:
+    db = firestore.client()
+
+    platform = platform.lower()
+    collection_name = f"{platform}_sku_mapping"
+
+    mapping_ref = (
+        db.collection("user")
+        .document(user_name)
+        .collection(collection_name)
+        .where("sku", "==", sku)
+    )
+
+    docs = mapping_ref.stream()
+
+    for doc in docs:
+        data = doc.to_dict()
+        return data.get("fsn")
+
+    return None
