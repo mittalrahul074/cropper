@@ -7,51 +7,130 @@ from datetime import datetime, timedelta
 import pandas as pd
 import tempfile
 
-def update_data_in_firebase(platform: str, df : pd.DataFrame,user_name:str) -> None:
+def update_data_in_firebase(
+    platform: str,
+    df: pd.DataFrame,
+    user_name: str
+) -> None:
+
     db = firestore.client()
-    
-    if platform.lower() not in ["flipkart", "meesho"]:
-        print(f"⚠️ Invalid platform '{platform}'. Must be 'flipkart' or 'meesho'.")
+
+    platform = platform.lower()
+
+    if platform not in ["flipkart", "meesho"]:
+        print(f"⚠️ Invalid platform '{platform}'.")
         return
 
     try:
-        # Choose collection name based on platform
-        collection_name = f"{platform.lower()}_sku_mapping"
-        
-        # Delete old data (optional)
-        print("getting old docs")
+        collection_name = f"{platform}_sku_mapping"
 
         mapping_ref = (
             db.collection("user")
-              .document(user_name)
-              .collection(collection_name)
+            .document(user_name)
+            .collection(collection_name)
         )
 
-        old_docs = mapping_ref.stream()
-        for doc in old_docs:
-            doc.reference.delete()
-        print("delted old docs")
+        # ---------------------------------------
+        # Select SKU / FSN columns
+        # ---------------------------------------
 
         if platform == "flipkart":
-            print(df)
-            sku_col = df.iloc[:, 1]
-            fsn_col = df.iloc[:,4] #e coloum
-        elif platform == "meesho":
-            print(df)
-            sku_col = df.iloc[:, 5]
-            fsn_col = df.iloc[:,4]
+            sku_col = df.iloc[:, 1]   # B
+            fsn_col = df.iloc[:, 4]   # E
 
-        print(f"sku:{sku_col}")
-        # Save each row as a document
-        for idx, (sku, fsn) in enumerate(zip(sku_col, fsn_col)):
+        elif platform == "meesho":
+            sku_col = df.iloc[:, 5]
+            fsn_col = df.iloc[:, 4]
+
+        # ---------------------------------------
+        # Get existing SKUs
+        # ---------------------------------------
+
+        print("🔍 Getting existing SKUs...", flush=True)
+
+        existing_docs = mapping_ref.stream()
+
+        existing_skus = {
+            doc.id
+            for doc in existing_docs
+        }
+
+        print(
+            f"📦 Existing SKUs: {len(existing_skus)}",
+            flush=True
+        )
+
+        # ---------------------------------------
+        # Prepare new records
+        # ---------------------------------------
+
+        new_records = []
+
+        for sku, fsn in zip(sku_col, fsn_col):
 
             if pd.isna(sku) or pd.isna(fsn):
                 continue
 
-            mapping_ref.document(str(idx)).set({
-                "sku": str(sku),
-                "fsn": str(fsn)
+            sku = str(sku).strip()
+            fsn = str(fsn).strip()
+
+            if fsn in existing_skus:
+                continue
+
+            new_records.append({
+                "sku": sku,
+                "fsn": fsn
             })
+
+            # Prevent duplicate SKU within the same file
+            existing_skus.add(fsn)
+
+        print(
+            f"🆕 New SKUs: {len(new_records)}",
+            flush=True
+        )
+
+        # ---------------------------------------
+        # Batch write
+        # ---------------------------------------
+
+        batch = db.batch()
+        batch_count = 0
+        total_added = 0
+
+        for record in new_records:
+
+            doc_ref = mapping_ref.document(record["fsn"])
+
+            batch.set(doc_ref, record)
+
+            batch_count += 1
+
+            # Firestore batch limit = 500 operations
+            if batch_count == 500:
+
+                batch.commit()
+
+                total_added += batch_count
+
+                print(
+                    f"✅ Uploaded {total_added} records...",
+                    flush=True
+                )
+
+                batch = db.batch()
+                batch_count = 0
+
+        # Commit remaining records
+        if batch_count > 0:
+
+            batch.commit()
+
+            total_added += batch_count
+
+        # ---------------------------------------
+        # Update upload date
+        # ---------------------------------------
 
         metadata_ref = (
             db.collection("user")
@@ -65,11 +144,16 @@ def update_data_in_firebase(platform: str, df : pd.DataFrame,user_name:str) -> N
         })
 
         print(
-            f"✅ {len(df)} records saved to Firebase/{collection_name}"
+            f"✅ Upload complete. Added {total_added} new SKUs.",
+            flush=True
         )
-                
+
     except Exception as e:
-        print(f"❌ Error saving to Firebase: {e}")
+
+        print(
+            f"❌ Error saving to Firebase: {e}",
+            flush=True
+        )
 
 def get_last_upload_date(user_name: str, platform: str):
     db = firestore.client()

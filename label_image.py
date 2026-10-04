@@ -624,7 +624,8 @@ def render_label_stamper_panel():
         is_flipkart_file = 1 if flipkart_file_exists else 0
 
     with col2:
-        if flipkart_file_exists and st.button("🔄 Update Flipkart"):
+        btn_label = "🔄 Update Flipkart" if flipkart_file_exists else "📤 Upload Flipkart"
+        if st.button(btn_label, key="flipkart_btn"):
             st.session_state.show_flipkart_upload = True
 
     if st.session_state.get("show_flipkart_upload", not flipkart_file_exists):
