@@ -26,6 +26,7 @@ import time
 from PIL import Image
 from database import update_data_in_firebase, get_last_upload_date
 import pandas as pd
+from zoneinfo import ZoneInfo
 
 # ── Reuse your existing Firebase connection ──────────────────────────────────
 from firebase_utils import db  # your existing module
@@ -620,7 +621,21 @@ def render_label_stamper_panel():
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        st.success("✅ Flipkart listing uploaded") if flipkart_file_exists else st.caption("Upload Flipkart listing xls file")
+        # Convert UTC → India Standard Time (IST)
+        indian_time = (
+            flipkart_file_exists.astimezone(ZoneInfo("Asia/Kolkata"))
+            if flipkart_file_exists
+            else None
+        )
+
+        if indian_time:
+            st.success(
+                f"✅ Flipkart listing uploaded on "
+                f"{indian_time.strftime('%d %b %Y %H:%M')}"
+            )
+        else:
+            st.caption("Upload Flipkart listing xls file")
+
         is_flipkart_file = 1 if flipkart_file_exists else 0
 
     with col2:
@@ -641,7 +656,21 @@ def render_label_stamper_panel():
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.success("✅ Meesho listing uploaded") if meesho_file_exists else st.caption("Upload meesho listing xls file")
+        # Convert UTC → India Standard Time (IST)
+        indian_time = (
+            meesho_file_exists.astimezone(ZoneInfo("Asia/Kolkata"))
+            if meesho_file_exists
+            else None
+        )
+
+        if indian_time:
+            st.success(
+                f"✅ Meesho listing uploaded on "
+                f"{indian_time.strftime('%d %b %Y %H:%M')}"
+            )
+        else:
+            st.caption("Upload Meesho listing xls file")
+
         is_meesho_file = 1 if meesho_file_exists else 0
 
     with col2:
