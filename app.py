@@ -137,12 +137,12 @@ def attempt_auto_login() -> None:
             st.write(f"Debug: localStorage error: {e}")
             token = None
     else:
-        st.write("Found token via url")
+        # st.write("Found token via url")
 
     if token:
-        st.write(f"Debug: Token found from {source}: {token[:20]}...")
+        # st.write(f"Debug: Token found from {source}: {token[:20]}...")
         username = get_user_from_token(token)
-        st.write(f"Debug: get_user_from_token returned: {username}")
+        # st.write(f"Debug: get_user_from_token returned: {username}")
         
         if username:
             st.session_state.authenticated = True
@@ -151,7 +151,7 @@ def attempt_auto_login() -> None:
             st.session_state.user_type = get_user_type(username)
             st.session_state.party_filter = get_party(username)
             save_token_to_storage(token)
-            st.write(f"✅ Auto-logged in as {username}")
+            # st.write(f"✅ Auto-logged in as {username}")
             return
         else:
             st.write(f"⚠️ Token exists but user lookup failed")
@@ -166,7 +166,7 @@ def attempt_auto_login() -> None:
                 st.session_state.user_role = username
                 st.session_state.user_type = get_user_type(username)
                 st.session_state.party_filter = get_party(username)
-                st.write(f"✅ Auto-logged in via cookie as {username}")
+                # st.write(f"✅ Auto-logged in via cookie as {username}")
         except Exception as e:
             st.write(f"Debug: Cookie login error: {e}")
 
