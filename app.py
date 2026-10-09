@@ -136,7 +136,7 @@ def attempt_auto_login() -> None:
         except Exception as e:
             st.write(f"Debug: localStorage error: {e}")
             token = None
-    else:
+    # else:
         # st.write("Found token via url")
 
     if token:
